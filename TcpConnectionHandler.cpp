@@ -51,7 +51,7 @@ int TcpConnectionHandler::start(){
             perror("Error accepting connection on socket");
             return -1;
         } 
-
+    
         threads.push_back(std::thread([this,client_socket]{
             this->processConnection(client_socket);
         }));
@@ -70,8 +70,6 @@ int TcpConnectionHandler::start(){
 
 void TcpConnectionHandler::processConnection(int client_socket){
     
-
-
     const unsigned int MAX_BUF_LEN = 1024;
     char buff[MAX_BUF_LEN];
     std::string received_data;
@@ -90,12 +88,15 @@ void TcpConnectionHandler::processConnection(int client_socket){
 
     HttpRequestHandler http_handler;
     
-    std::string http_response_header = http_handler.processRequest(received_data);
+    HttpResponse response = http_handler.processRequest(received_data);
 
+    response.print();
 
-    sendAll(client_socket,http_response_header.c_str(),strlen(http_response_header.c_str()));
+    std::string response_header = response.getResponseHeader();
 
-    sendAll(client_socket,http_handler.getData(),http_handler.getdataLen());
+    sendAll(client_socket,response_header.c_str(),strlen(response_header.c_str()));
+
+    sendAll(client_socket,response.getData().data(),response.getData().size());
     
     close(client_socket);
     
