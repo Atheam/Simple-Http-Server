@@ -2,6 +2,7 @@
 
 #define CONFIG "config.txt"
 
+#define FAIL -1
 
 int main(){
 
@@ -23,8 +24,8 @@ int main(){
 
     TcpConnectionHandler server(ip_addr.c_str(),std::stoi(port));
 
-    server.init();
-    server.start();
+    if(server.init() == FAIL) server.cleanup();
+    if(server.start() == FAIL) server.cleanup();
 
     return 0;
 }

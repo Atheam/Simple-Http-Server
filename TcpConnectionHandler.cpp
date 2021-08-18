@@ -1,19 +1,17 @@
 #include "TcpConnectionHandler.h"
 
 
-
-
 int TcpConnectionHandler::init(){
 
      if((this->socket_fd = socket(AF_INET,SOCK_STREAM,0)) == -1 ){
          perror("Error creating socket");
-         return -1;
+         return FAIL;
      }
 
     int opt = 1;
     if(setsockopt(this->socket_fd,SOL_SOCKET,SO_REUSEADDR | SO_REUSEPORT,&opt,sizeof(opt)) == -1){
         perror("Error setting socket options");
-        return -1;
+        return FAIL;
     }
 
     struct sockaddr_in address;
@@ -22,12 +20,12 @@ int TcpConnectionHandler::init(){
 
     if(inet_aton(this->ip_address,&address.sin_addr) == 0){
         perror("Invalid ip address");
-        return -1;
+        return FAIL;
     }
 
     if(bind(this->socket_fd,(struct sockaddr *) &address,sizeof(address)) == -1){
         perror("Error binding socket");
-        return -1;
+        return FAIL;
     }
 
     return 0;
@@ -38,28 +36,19 @@ int TcpConnectionHandler::start(){
 
     if(listen(this->socket_fd,BACKLOG) == -1){
         perror("Error starting listening on socket");
-        return -1;
+        return FAIL;
     }
 
     std::cout << "Server Listening on port " << this->port << "\n";
-
-    std::vector<std::thread> threads;
 
     while(1){
         int client_socket;
         if((client_socket = accept(this->socket_fd,nullptr,nullptr)) == -1){
             perror("Error accepting connection on socket");
-            return -1;
         } 
     
-        threads.push_back(std::thread([this,client_socket]{
-            this->processConnection(client_socket);
-        }));
+        this->processConnection(client_socket);
 
-    }
-
-    for(auto &th : threads){
-        th.join();
     }
 
     close(this->socket_fd);
@@ -100,6 +89,10 @@ void TcpConnectionHandler::processConnection(int client_socket){
     
     close(client_socket);
     
+}
+
+void TcpConnectionHandler::cleanup(){
+    close(this->socket_fd);
 }
 
 int TcpConnectionHandler::sendAll(int socket, const void *data, int datalen)

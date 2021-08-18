@@ -24,6 +24,9 @@ class TcpConnectionHandler{
         //starts listening 
         int start();
 
+        //cleans up after error
+        void cleanup();
+
         //function executed by a separate thread, processes a single connection
         void processConnection(int client_socket);
 

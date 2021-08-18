@@ -2,7 +2,7 @@
 #include <map>
 #include <sstream>
 #include <fstream>
-#include <filesystem>
+#include <filesystem> 
 #include <vector>
 
 #define NOT_FOUND 404
@@ -10,6 +10,7 @@
 #define BAD_REQUEST 400
 #define INT_SERV_ERR 500
 #define OK 200
+#define FAIL -1
 
 #define BASE_PATH "public_html"
 
@@ -54,7 +55,6 @@ class HttpRequest{
         public:
             HttpRequest(){}
             HttpRequest(std::string method, std::string version, std::string path):
-
             method(method), version(version), path(path){}
 
             void addHeader(std::string header_name, std::string header_value){this->headers[header_name] = header_value;}
@@ -69,6 +69,8 @@ class HttpRequest{
                 
 };
 
+enum Method {GET,POST,PUT};
+
 class HttpRequestHandler{
     public:
         
@@ -81,18 +83,22 @@ class HttpRequestHandler{
         //finds resource and sets status code (200 if OK) returns nullptr on error
         int getResource(std::string filename);
 
+        HttpResponse  getMethodHandler();
+
         //create data to send based on error (creates a string "{error_code} - {error_text}")
         std::string createStringError(int status_code);
 
         std::string getExt(std::string filename);
 
     private:
-
         static const std::map<std::string,std::string>          content_types; //list of extensions mapped to content types      
         static const std::map<int,std::string>                  status_codes; //a list of status codes mapped to status texts
         HttpResponse                                            response;
         HttpRequest                                             request;
+        Method                                                  method;
 };
+
+
 
 
 
