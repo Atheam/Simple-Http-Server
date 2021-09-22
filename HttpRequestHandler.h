@@ -47,9 +47,6 @@ class HttpResponse{
  
 };
 
-#include <iostream>
-#include <map>
-
 class HttpRequest{
 
         public:
@@ -93,7 +90,11 @@ class HttpRequestHandler{
 
         HttpResponse postMethodHandler();
 
+        HttpResponse putMethodHandler();
+
         int createResource(std::string path, std::vector<char> data);
+
+        int updateResource(std::string path, std::vector<char> data);
 
         int checkPath(std::string path);
 
@@ -103,6 +104,8 @@ class HttpRequestHandler{
         std::string getExt(std::string filename);
 
     private:
+        int                                                     checkIfFileCorrect(std::string path);
+        void                                                    createFile(std::string path, std::vector<char> data);
         static const std::map<std::string,std::string>          content_types; //list of extensions mapped to content types      
         static const std::map<int,std::string>                  status_codes; //a list of status codes mapped to status texts
         HttpResponse                                            response;

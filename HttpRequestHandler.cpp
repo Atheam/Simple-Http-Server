@@ -11,7 +11,9 @@ const std::map<int,std::string> HttpRequestHandler::status_codes = {
 const std::map<std::string,std::string> HttpRequestHandler::content_types = {
                 {"jpg","image/jpg"},
                 {"png","image/png"},
-                {"html","text/html;charset=utf-8'"}
+                {"html","text/html;charset=utf-8'"},
+                {"", "text/plain"},
+                {"txt", "text/plain"}
                 };
 
 HttpResponse HttpRequestHandler::processRequest(std::string request){
@@ -23,10 +25,13 @@ HttpResponse HttpRequestHandler::processRequest(std::string request){
         this->response.addHeader("Content-Type","text/plain");
         return this->response;
    }
+   
     switch(this->method){
         case Method::GET: return getMethodHandler();
         case Method::POST: return postMethodHandler();
+        case Method::PUT: return putMethodHandler();
     }
+    
 }
 
 HttpResponse HttpRequestHandler::getMethodHandler(){
@@ -48,7 +53,16 @@ HttpResponse HttpRequestHandler::postMethodHandler(){
         this->response.setDataFromString(createStringError(this->response.getStatus().first));
         this->response.addHeader("Content-length",std::to_string(this->response.getDataLength()));
         this->response.addHeader("Content-Type","text/plain");
-        return this->response;
+    }
+    return this->response;
+}
+
+HttpResponse HttpRequestHandler::putMethodHandler(){
+    if(updateResource(this->request.getPath(), this->request.getData()) == FAIL){
+        this->response.setDataFromString(createStringError(this->response.getStatus().first));
+        this->response.addHeader("Content-length",std::to_string(this->response.getDataLength()));
+        this->response.addHeader("Content-Type","text/plain");
+        
     }
     return this->response;
 }
@@ -94,12 +108,9 @@ int HttpRequestHandler::parseRequest(const std::string request){
         value = buff.substr(pos+1);
         if(name.empty() || value.empty()) return FAIL;
         this->request.addHeader(name,value);
-        std::cout << buff << "\n";
-
     }
 
     std::vector<char> data_buff;
-    std::cout << method_buff;
     if(method_buff == "POST" || method_buff == "PUT") {
         char c;
         while(ss >> std::noskipws >> c){
@@ -126,11 +137,49 @@ int HttpRequestHandler::createResource(std::string path, std::vector<char> data)
 
     std::string final_path = BASE_PATH + path;
 
-    std::ofstream fout("file", std::ios::out | std::ios::binary);
-    fout.write((char*)&data[0], data.size() * sizeof(char));
-    fout.close();
+    createFile(final_path, data);
+
+    if(checkIfFileCorrect(final_path) == FAIL) return FAIL;
 
     this->response.setStatus(OK,status_codes.at(OK));
+    return 0;
+}
+
+int HttpRequestHandler::updateResource(std::string path, std::vector<char> data){
+    if(checkPath(path) == FAIL){
+        this->response.setStatus(FORBIDDEN,status_codes.at(FORBIDDEN));
+        return FAIL;
+    }
+
+    std::string final_path = BASE_PATH + path;
+
+    if(!std::filesystem::exists(final_path)){
+        this->response.setStatus(NOT_FOUND,status_codes.at(NOT_FOUND));
+        return FAIL; 
+    }
+
+    createFile(final_path, data);
+
+    if(checkIfFileCorrect(final_path) == FAIL) return FAIL;
+    
+
+    this->response.setStatus(OK,status_codes.at(OK));
+    return 0;
+}
+
+void HttpRequestHandler::createFile(std::string path, std::vector<char> data){
+    std::ofstream fout(path, std::ios::out | std::ios::binary);
+    fout.write((char*)&data[0], data.size() * sizeof(char));
+    fout.close();
+}
+
+int HttpRequestHandler::checkIfFileCorrect(std::string path){
+    std::ifstream file(path,std::ios::in | std::ios::binary);
+
+    if(!file.is_open()){
+        this->response.setStatus(INT_SERV_ERR,status_codes.at(INT_SERV_ERR));
+        return FAIL;
+    }
     return 0;
 }
 
@@ -151,13 +200,11 @@ int HttpRequestHandler::getResource(const std::string path){
         return FAIL; 
     }
     
+    
     std::ifstream file(final_path,std::ios::in | std::ios::binary);
 
-    if(!file.is_open()){
-        this->response.setStatus(INT_SERV_ERR,status_codes.at(INT_SERV_ERR));
-        return FAIL;
-    }
-
+    if(checkIfFileCorrect(final_path) == FAIL) return FAIL;
+    
     this->response.setDataFromVector(std::vector<char>(std::istreambuf_iterator<char>(file),std::istreambuf_iterator<char>()));
     file.close();
 
@@ -186,8 +233,10 @@ std::string HttpRequestHandler::createStringError(int status_code){
 }
 
 std::string HttpRequestHandler::getExt(std::string filename){
-    if(filename != "/") return filename.substr(filename.find_last_of(".") + 1); 
-    else return "html";
+    if(filename == "/") return "html";
+    std::string ext = filename.substr(filename.find_last_of(".") + 1);
+    if(ext == filename) return "";
+    return ext;
 }
 
 void HttpResponse::print(){
