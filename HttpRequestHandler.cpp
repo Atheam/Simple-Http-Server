@@ -23,11 +23,10 @@ HttpResponse HttpRequestHandler::processRequest(std::string request){
         this->response.addHeader("Content-Type","text/plain");
         return this->response;
    }
-    
     switch(this->method){
         case Method::GET: return getMethodHandler();
+        case Method::POST: return postMethodHandler();
     }
-
 }
 
 HttpResponse HttpRequestHandler::getMethodHandler(){
@@ -43,6 +42,17 @@ HttpResponse HttpRequestHandler::getMethodHandler(){
     this->response.addHeader("Content-Type",content_types.at(ext));
     return this->response;
 }
+
+HttpResponse HttpRequestHandler::postMethodHandler(){
+    if(createResource(this->request.getPath(), this->request.getData()) == FAIL){
+        this->response.setDataFromString(createStringError(this->response.getStatus().first));
+        this->response.addHeader("Content-length",std::to_string(this->response.getDataLength()));
+        this->response.addHeader("Content-Type","text/plain");
+        return this->response;
+    }
+    return this->response;
+}
+
 
 int HttpRequestHandler::parseRequest(const std::string request){
     
@@ -74,28 +84,63 @@ int HttpRequestHandler::parseRequest(const std::string request){
         return FAIL;
     }
 
-    this->request = HttpRequest(method,version,path);
+    this->request = HttpRequest(method_buff,version,path);
 
     std::string name;
     std::string value;
-    while(std::getline(ss,buff)){
+    while(std::getline(ss,buff) && buff != "\r"){
         int pos = buff.find(":");
         name = buff.substr(0,pos);
         value = buff.substr(pos+1);
         if(name.empty() || value.empty()) return FAIL;
         this->request.addHeader(name,value);
+        std::cout << buff << "\n";
+
     }
 
+    std::vector<char> data_buff;
+    std::cout << method_buff;
+    if(method_buff == "POST" || method_buff == "PUT") {
+        char c;
+        while(ss >> std::noskipws >> c){
+            data_buff.push_back(c);
+        }
+        this->request.setData(data_buff);
+    }
+    return 0;
+}
+
+int HttpRequestHandler::checkPath(std::string path){
+    if(path.find("..") != std::string::npos || (path.length() > 0  && path[0] != '/')){
+        return FAIL;
+    }
+    return 0;
+}
+
+
+int HttpRequestHandler::createResource(std::string path, std::vector<char> data){
+    if(checkPath(path) == FAIL){
+        this->response.setStatus(FORBIDDEN,status_codes.at(FORBIDDEN));
+        return FAIL;
+    }
+
+    std::string final_path = BASE_PATH + path;
+
+    std::ofstream fout("file", std::ios::out | std::ios::binary);
+    fout.write((char*)&data[0], data.size() * sizeof(char));
+    fout.close();
+
+    this->response.setStatus(OK,status_codes.at(OK));
     return 0;
 }
 
 int HttpRequestHandler::getResource(const std::string path){
 
-    if(path.find("..") != std::string::npos || (path.length() > 0  && path[0] != '/')){
+    if(checkPath(path) == FAIL){
         this->response.setStatus(FORBIDDEN,status_codes.at(FORBIDDEN));
         return FAIL;
     }
-    
+
     std::string final_path = BASE_PATH + path;
      if(final_path  == BASE_PATH"/"){
         final_path = BASE_PATH"/index.html";

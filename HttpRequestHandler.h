@@ -59,12 +59,18 @@ class HttpRequest{
 
             void addHeader(std::string header_name, std::string header_value){this->headers[header_name] = header_value;}
 
+            void setData(std::vector<char> data){this->data = data;}\
+            std::vector<char> getData(){return data;}
+
             std::string getPath(){return path;}
+            
+            
 
         private:
             std::string                             method;
             std::string                             version;
             std::string                             path;
+            std::vector<char>                       data;
             std::map<std::string, std::string>      headers;
                 
 };
@@ -84,6 +90,12 @@ class HttpRequestHandler{
         int getResource(std::string filename);
 
         HttpResponse  getMethodHandler();
+
+        HttpResponse postMethodHandler();
+
+        int createResource(std::string path, std::vector<char> data);
+
+        int checkPath(std::string path);
 
         //create data to send based on error (creates a string "{error_code} - {error_text}")
         std::string createStringError(int status_code);
